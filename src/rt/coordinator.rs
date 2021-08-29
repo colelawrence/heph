@@ -60,6 +60,8 @@ struct Metrics<'c, 'l> {
     sync_actors: usize,
     shared: shared::Metrics,
     process_signals: SignalSet,
+    // TODO: add:
+    //process_signal_received: usize,
     process_signal_receivers: usize,
     total_cpu_time: Duration,
     cpu_time: Duration,

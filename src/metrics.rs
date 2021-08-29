@@ -24,6 +24,12 @@ pub trait Collect {
 
     /// Get the current metrics from this type.
     fn metrics(&self) -> &Self::Metrics;
+
+    /// Get the current metrics wrapped in [`MetricsSource`] allowing them to be
+    /// used as [`log::kv::Source`].
+    fn metrics_kv(&self) -> MetricsSource<&Self::Metrics> {
+        MetricsSource(self.metrics())
+    }
 }
 
 /// [Collected] metrics.
@@ -71,5 +77,41 @@ impl Counter {
     /// Add `n` to the counter.
     pub(crate) const fn add(&mut self, n: usize) {
         self.0 += n;
+    }
+}
+
+/// Wrapper around metrics `M` to implement [`log::kv::Source`].
+#[derive(Debug, Clone)]
+pub struct MetricsSource<M>(M);
+
+impl<M> log::kv::Source for MetricsSource<M>
+where
+    M: Metrics + ?Sized,
+{
+    fn visit<'kvs>(
+        &'kvs self,
+        visitor: &mut dyn log::kv::Visitor<'kvs>,
+    ) -> Result<(), log::kv::Error> {
+        for (name, metric) in self.0.iter() {
+            let key = log::kv::Key::from_str(name);
+            let value = match metric {
+                Metric::Counter(count) => log::kv::Value::from(count),
+            };
+            visitor.visit_pair(key, value)?;
+        }
+        Ok(())
+    }
+
+    fn get<'v>(&'v self, key: log::kv::Key<'_>) -> Option<log::kv::Value<'v>> {
+        let find_key = key.as_str();
+        self.0.iter().find_map(|(key, value)| {
+            (key == find_key).then(|| match value {
+                Metric::Counter(count) => log::kv::Value::from(count),
+            })
+        })
+    }
+
+    fn count(&self) -> usize {
+        self.0.iter().count()
     }
 }

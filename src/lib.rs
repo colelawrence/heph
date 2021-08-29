@@ -82,6 +82,7 @@
     maybe_uninit_extra,
     maybe_uninit_slice,
     maybe_uninit_uninit_array,
+    min_specialization,
     never_type,
     new_uninit,
     result_into_ok_or_err,
